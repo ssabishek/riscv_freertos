@@ -11,6 +11,7 @@ TARGET=$(BUILD_DIR)/$(PROGRAM).elf
 
 FILES := \
 	main.c \
+	log.c \
 
 ASMFILES := \
 	start.S \
