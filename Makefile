@@ -1,24 +1,37 @@
-CROSS=/home/abishekss/tools/v3.07/bin/riscv32-mti-elf-
+CROSS=/home/abishekss/tools/riscv/bin/riscv32-unknown-elf-
 CC=$(CROSS)gcc
 AS=$(CROSS)as
 LD=$(CROSS)ld
 OBJCOPY=$(CROSS)objcopy
 OBJDUMP=$(CROSS)objdump
 
-PROGRAM=m8500_hello_world
-LIBNAME=$(PROGRAM)
+PROGRAM=hello_freertos
 TARGET=$(BUILD_DIR)/$(PROGRAM).elf
+FREERTOS_PATH=FreeRTOS-Kernel
 
 FILES := \
 	main.c \
+	port.c \
+	tasks.c \
+	queue.c \
+	list.c \
+	heap_4.c \
 	log.c \
+	uart.c \
 
 ASMFILES := \
 	start.S \
+	portASM.S \
 
-FILES_PATH := 
+FILES_PATH := \
+	$(FREERTOS_PATH)/portable/GCC/RISC-V/ \
+	$(FREERTOS_PATH)/portable/MemMang \
+	$(FREERTOS_PATH)/ \
 
-INCLUDES=-I. \
+INCLUDES=-I$(FREERTOS_PATH)/include \
+	-I$(FREERTOS_PATH)/portable/GCC/RISC-V \
+	-I$(FREERTOS_PATH)/portable/GCC/RISC-V/chip_specific_extensions/RISCV_no_extensions \
+	-I. \
 
 CFLAGS=-march=rv32imafd -mabi=ilp32d -O0 -g -Wall
 ASMFLAGS=-march=rv32imafd -mabi=ilp32d -g
@@ -64,10 +77,10 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 run: $(BINARY)
-	qemu-system-riscv32 -machine virt -nographic -bios none -kernel $(TARGET)
+	/home/abishekss/tools/qemu/build/qemu-system-riscv32 -machine virt -nographic -bios none -kernel $(TARGET)
 
 debug: $(BINARY)
-	qemu-system-riscv32 -machine virt -nographic -bios none -kernel $(TARGET) -s -S
+	/home/abishekss/tools/qemu/build/qemu-system-riscv32 -machine virt -nographic -bios none -kernel $(TARGET) -s -S
 
 gdb:
 	@echo "Starting GDB..."

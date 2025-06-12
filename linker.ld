@@ -44,7 +44,7 @@ SECTIONS
   } > DATA
 
   /* Stack section (placed at top of DATA region) */
-  .stack (NOLOAD) : ALIGN(8)
+  .stack (NOLOAD) : ALIGN(16)
   {
     __stack_top = ORIGIN(DATA) + LENGTH(DATA);
     __stack_bottom = __stack_top - 0x2000; /* 8 KB stack */

@@ -1,73 +1,120 @@
-/*
- * Test case for logging system
- * Tests all format specifiers, log levels, verbose modes, and edge cases
- * Copyright (c) 2025, MIPS All rights reserved.
- */
+#include <FreeRTOS.h>
+#include <task.h>
+#include <stdint.h>
+#include "log.h"
+#include "uart.h"
 
-#include <log.h>
+/* FreeRTOS hooks */
+void vApplicationMallocFailedHook( void );
+void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName );
+void vApplicationIdleHook( void );
+void vApplicationTickHook( void );
 
-// Define UART0_BASE for QEMU virt machine
-#ifndef UART0_BASE
-#define UART0_BASE 0x10000000
-#endif
-
-// Ensure all log levels are included
-#ifndef LOG_MAX_LEVEL
-#define LOG_MAX_LEVEL LOG_LEVEL_DEBUG
-#endif
-
-// UART driver function declarations
-void uart_putc(char c);
-void uart_puts(const char *str);
-
-// Comment out to test with LOG_VERBOSE_MODE 0 (simple mode)
-//#define LOG_VERBOSE_MODE 1
-
-// Custom output handler for testing
-static void custom_handler(const char* message, size_t length)
-{
-    // Prefix with "CUSTOM: " and use uart_puts
-    uart_puts("CUSTOM: ");
-    uart_puts(message);
+// Task 1 function
+void vTask1(void *pvParameters) {
+    (void)pvParameters;
+    for (;;) {
+        LOG_INFO("Task 1 running\n");
+        for (int i = 0; i < 1000000; i++);
+    }
 }
 
-int main(void)
-{
+// Task 2 function
+void vTask2(void *pvParameters) {
+    (void)pvParameters;
+    for (;;) {
+        LOG_INFO("Task 2 running\n");
+        for (int i = 0; i < 1000000; i++);
+    }
+}
+
+int main(void) {
     log_init(); // Initialize logging system
-
-    // Test 1: Basic log levels with simple format
-    LOG_ERROR("Error message: %d\n", -42);
-    LOG_WARN("Warning message: %u\n", 1234);
-    LOG_INFO("Info message: %s\n", "Hello, RISC-V FreeRTOS!");
-    LOG_DEBUG("Debug message: %x\n", 0x1A);
-
-    // Test 2: All format specifiers
-    LOG_INFO("All formats: %d, %i, %u, %x, %X, %s, %c, %p, %%\n",
-             -42, -42, 1234, 0x1A, 0x1A, "test", 'Z', (void*)0x80000000);
-
-    // Test 3: Format flags (width, zero-padding, precision)
-    LOG_INFO("Width: %4d, Zero-pad: %04d, Precision: %.2s, %.2d\n",
-             42, 42, "abcd", 3);
-
-    // Test 4: Edge cases
-    LOG_INFO("Null string: %s\n", (char*)0); // Should print "(null)"
-    LOG_INFO("Large number: %d\n", 2147483647); // Max int32
-    LOG_INFO("Zero: %d\n", 0);
-    LOG_INFO("Invalid specifier: %q\n", 123); // Should print "%q"
-
-    // Test 5: Long string (approaching buffer limit)
-    char long_str[200];
-    for (int i = 0; i < 199; i++) long_str[i] = 'A';
-    long_str[199] = '\0';
-    LOG_INFO("Long string: %.150s\n", long_str); // Limit to 150 chars
-
-    // Test 6: Custom output handler
-    log_register_output_handler(custom_handler);
-    LOG_INFO("Custom handler test: %d\n", 100);
-    log_register_output_handler(NULL); // Reset to default
-
-    // Test 7: Verbose mode (if LOG_VERBOSE_MODE is 1)
-    LOG_INFO("Verbose test: %d\n", 42); // Should include file, line, func if verbose
-
+    // Create Task 1
+    LOG_INFO("Entering main\n");
+    xTaskCreate(vTask1, "Task1", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+    
+    // Create Task 2
+    xTaskCreate(vTask2, "Task2", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+    
+    // Start the scheduler
+    vTaskStartScheduler();
+    
+    // Should never reach here
+    for (;;) { }
     return 0;
+}
+
+
+void vAssertCalled( const char * pcFileName,
+                    uint32_t ulLine )
+{
+    volatile uint32_t ulSetToNonZeroInDebuggerToContinue = 0;
+
+    /* Called if an assertion passed to configASSERT() fails.  See
+     * http://www.freertos.org/a00110.html#configASSERT for more information. */
+
+    LOG_INFO("ASSERT! Line %d, file %s\r\n", ( int ) ulLine, pcFileName );
+
+    taskENTER_CRITICAL();
+    {
+        /* You can step out of this function to debug the assertion by using
+         * the debugger to set ulSetToNonZeroInDebuggerToContinue to a non-zero
+         * value. */
+        while( ulSetToNonZeroInDebuggerToContinue == 0 )
+        {
+            __asm volatile ( "NOP" );
+            __asm volatile ( "NOP" );
+        }
+    }
+    taskEXIT_CRITICAL();
+}
+
+
+void vApplicationStackOverflowHook( TaskHandle_t pxTask,
+                                    char * pcTaskName )
+{
+    ( void ) pcTaskName;
+    ( void ) pxTask;
+
+    /* Run time stack overflow checking is performed if
+     * configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+     * function is called if a stack overflow is detected. */
+    LOG_INFO("\r\n\r\nStack overflow in %s\r\n", pcTaskName );
+    portDISABLE_INTERRUPTS();
+
+    for( ; ; )
+    {
+    }
+}
+/*-----------------------------------------------------------*/
+
+/* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
+ * implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
+ * used by the Idle task. */
+void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
+                                    StackType_t ** ppxIdleTaskStackBuffer,
+                                    uint32_t * pulIdleTaskStackSize )
+{
+/* If the buffers to be provided to the Idle task are declared inside this
+ * function then they must be declared static - otherwise they will be allocated on
+ * the stack and so not exists after this function exits. */
+    static StaticTask_t xIdleTaskTCB;
+    static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
+
+    /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
+     * state will be stored. */
+    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+
+    /* Pass out the array that will be used as the Idle task's stack. */
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+
+    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+     * Note that, as the array is necessarily of type StackType_t,
+     * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+
+void vApplicationIdleHook( void )
+{
 }

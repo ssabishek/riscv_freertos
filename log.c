@@ -11,35 +11,9 @@
  * -----------------------------------------------------
  */
 
-#include <log.h>
-
-#define UART0_BASE 0x10000000              // Base address for UART0 (example address, adjust as needed)
-
-#define REG(base, offset) ((*((volatile unsigned char *)(base + offset))))
-#define UART0_DR    REG(UART0_BASE, 0x00)
-#define UART0_FCR   REG(UART0_BASE, 0x02)
-#define UART0_LSR   REG(UART0_BASE, 0x05)
-
-#define UARTFCR_FFENA 0x01                // UART FIFO Control Register enable bit
-#define UARTLSR_THRE 0x20                 // UART Line Status Register Transmit Hold Register Empty bit
-#define UART0_FF_THR_EMPTY (UART0_LSR & UARTLSR_THRE)
+#include "log.h"
 
 static log_output_handler_t custom_output_handler = NULL;
-
-// UART driver function declarations
-void uart_putc(char c);
-void uart_puts(const char *str);
-
-void uart_putc(char c) {
-    while (!UART0_FF_THR_EMPTY);          // Wait until the FIFO holding register is empty
-    UART0_DR = c;                         // Write character to transmitter register
-}
-
-void uart_puts(const char *str) {
-    while (*str) {                        // Loop until value at string pointer is zero
-        uart_putc(*str++);                // Write the character and increment pointer
-    }
-}
 
 __attribute__((weak)) void log_output_default(const char* message, size_t length)
 {
@@ -65,8 +39,7 @@ void log_register_output_handler(log_output_handler_t handler)
 
 void log_init(void)
 {
-    /* Initialize UART for logging */
-    UART0_FCR |= UARTFCR_FFENA; // Enable FIFO
+    uart_init();
     uart_puts("Logging system initialized.\n");
 }
 
@@ -114,7 +87,7 @@ static int append_num(char* buffer, size_t* offset, size_t max, unsigned long nu
 void log_print(const char* fmt, ...)
 {
     va_list args;
-    char buffer[256];
+    char buffer[32];
     size_t offset = 0;
 
     va_start(args, fmt);
