@@ -87,7 +87,7 @@ static int append_num(char* buffer, size_t* offset, size_t max, unsigned long nu
 void log_print(const char* fmt, ...)
 {
     va_list args;
-    char buffer[32];
+    char buffer[128];
     size_t offset = 0;
 
     va_start(args, fmt);

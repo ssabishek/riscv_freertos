@@ -7,7 +7,10 @@ OBJDUMP=$(CROSS)objdump
 
 PROGRAM=hello_freertos
 TARGET=$(BUILD_DIR)/$(PROGRAM).elf
-FREERTOS_PATH=FreeRTOS-Kernel
+
+ROOT_PATH=../..
+DRIVER_PATH=$(ROOT_PATH)/drivers
+FREERTOS_PATH=$(ROOT_PATH)/FreeRTOS-Kernel
 
 FILES := \
 	main.c \
@@ -15,6 +18,7 @@ FILES := \
 	tasks.c \
 	queue.c \
 	list.c \
+	timers.c \
 	heap_4.c \
 	log.c \
 	uart.c \
@@ -27,10 +31,12 @@ FILES_PATH := \
 	$(FREERTOS_PATH)/portable/GCC/RISC-V/ \
 	$(FREERTOS_PATH)/portable/MemMang \
 	$(FREERTOS_PATH)/ \
+	$(DRIVER_PATH)/ \
 
 INCLUDES=-I$(FREERTOS_PATH)/include \
 	-I$(FREERTOS_PATH)/portable/GCC/RISC-V \
 	-I$(FREERTOS_PATH)/portable/GCC/RISC-V/chip_specific_extensions/RISCV_no_extensions \
+	-I$(DRIVER_PATH)/ \
 	-I. \
 
 CFLAGS=-march=rv32imafd -mabi=ilp32d -O0 -g -Wall
@@ -84,7 +90,7 @@ debug: $(BINARY)
 
 gdb:
 	@echo "Starting GDB..."
-	gdb-multiarch $(TARGET) -ex "target remote localhost:1234" -ex "break _start" -ex "continue"
+	/home/abishekss/tools/riscv/bin/riscv32-unknown-elf-gdb $(TARGET) -ex "target remote localhost:1234" -ex "break _start" -ex "continue"
 	@echo "GDB session ended."
 
 .PHONY: all clean run debug gdb
